@@ -1,0 +1,113 @@
+---
+title: "Statistical inference with the GSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+```{r load-data}
+load("gss.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+The General Social Survey has been gathering data on the American society to monitor and explain trends in attitudes and behaviours. Additionally, this data can be used to understand the societal structures existing in the country and how that structure is affected by subgroups and minorities. This data can also be used to compare the American society to other societies, provided such data is available for comparision.
+
+The data contains 57061 observations of 114 variables. This is a relatively large sample drawn by random sampling so we can generalize this data to the population.
+
+* * *
+
+## Part 2: Research question
+**Relationship between political standing and opinions on premarital sex**
+For this project, I am interesting in finding out if a relationship between opinions on premarital sex and political standing exists. I believe this question is of interest as many believe that conservative individuals are against premarital sex and vice versa.
+
+* * *
+
+## Part 3: Exploratory data analysis
+For this project, I shall be using the following variables:
+  1. premarsx: Sex before marriage
+  
+```{r}
+summary(gss$premarsx)
+```
+
+  2. polviews: Thinks of self as liberal or conservative
+  
+```{r}
+summary(gss$polviews)
+```
+
+We will be removing all NAs from this dataset. In addition to that, the 'Moderate' column will be removed from **polviews** as it is not of interest to the research question. Other columns in **polviews** will be combined into 'Conservative' and 'Liberal'.
+
+```{r}
+gss_polpmsx <- gss %>%
+  filter(!is.na(polviews), !is.na(premarsx), premarsx != "Other", polviews != "Moderate") %>%
+  select(polviews, premarsx)
+gss_polpmsx$premarsx <- factor(gss_polpmsx$premarsx)
+```
+
+Combining conservative columns and liberal columns together.
+
+```{r}
+gss_polpmsx <- mutate(gss_polpmsx, pol_views = ifelse(grepl("Conservative", polviews, fixed=TRUE), "Conservative", "Liberal"))
+gss_polpmsx$polviews <- NULL
+gss_polpmsx$pol_views <- as.factor(gss_polpmsx$pol_views)
+```
+
+Summary
+```{r}
+summary(gss_polpmsx$pol_views)
+```
+
+#### Visualization
+```{r}
+plot(table(gss_polpmsx$premarsx,gss_polpmsx$pol_views), 
+     main = "Politcal views against Opinions on premarital sex",
+     )
+```
+
+From the plot above we can see that as we go from "Always Wrong" to "Never Wrong", the proportion of Conservatives decreases and Liberals increase. This aligns with the assumption stated before that conservative indiviudals have negative views on premarital sex. It should be noted that there is a factor of religion that may impact the relationship, but we are not looking into the effects of religion in this study.
+
+* * *
+
+## Part 4: Inference
+
+I will be conducting a test for independence since I am dealing with two categorical variables, and I wish to find out if the two variables are independent of eachother.
+
+**Null hypothesis:** Political views and views on premarital sex are independent of eachother
+**Alternative hypothesis** Political views and views on premarital sex are dependent
+
+**Conditions**
+For a chi-square test of independence the following conditions must be fulfilled:
+
+1. **Independence:** Since the data was sampled using random sampling, we can assume that the observations are independent of eachother. Additionally, there are 57061 observations, which make it less than 10% of the population.
+2. **Expected frequncy counts are over 5**: from the R output below we can see that the condition is satisfied.
+```{r}
+chisq.test(gss_polpmsx$pol_views,gss_polpmsx$premarsx)$expected
+```
+
+**Test for Independence**
+```{r}
+chisq.test(gss_polpmsx$pol_views, gss_polpmsx$premarsx)
+```
+
+Since the p value is less than 0.05, we reject the null hypothesis, and conclude that opinions on premarital sex and political standing are dependent on each other.
+
+It should be noted that there could be other factors that may affect the opinion on premarital sex. Such factors could be religion, age, and country of origin. These factors would require additional studies and analysis before any conclusive statements can be made about their relationships.
