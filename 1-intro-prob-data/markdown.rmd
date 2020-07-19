@@ -1,0 +1,160 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data 
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+
+## Part 1: Data
+
+The Behavioral Risk Factor Surveillance System (BRFSS) is a collaborative project between all states in the United States (US), US territories, and the Centre for Disease Control (CDC). It is designed to measure behavioral risk factors in the adult population in the US. The objective of this survey is to collect data on health practices and behaviors linked to injuries and diseases. Data was collected by telephone surveys since 1984. Later on, in 2011, cellular telephone surveys were also conducted.
+
+## Part 2: Research questions
+
+**Research quesion 1:**
+My first research question will explore the relationship between depressive disorders and smoking habits and alcohol consumption. My initial assumption is that individuals with depressive disorders are more likely to have such habits.
+
+**Research quesion 2:**
+For my second question, I will look into the relationship beteen veterans, depression, and having sleep problems. The general consensus about the amount of appropriate sleep hours for adults (18-64) is at least 6 hours. I will be using this value to determine if veterens are getting the recommended amount of sleep.
+
+**Research quesion 3:**
+For the final question, I will look into the relationship between cancer and smoking.
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+**Research quesion 1:**
+
+Determine drinkers and non drinkers
+```{r}
+
+brfss2013 <- brfss2013 %>%
+  mutate(alcohol_drinker = ifelse(alcday5 > 100, "Drinker", "Non drinker"))
+
+brfss2013 %>% group_by(alcohol_drinker) %>% summarise(count = n())
+
+```
+
+Find number of individuals with depression who have drinking and smoking habits
+```{r}
+
+dep_smoke <- brfss2013 %>% filter(!is.na(addepev2), !is.na(smoke100)) %>% select(addepev2, smoke100)
+dep_drink <- brfss2013 %>% filter(!is.na(alcohol_drinker), !is.na(addepev2)) %>% select(addepev2, alcohol_drinker)
+
+```
+
+Summaries
+```{r}
+
+depsmoke_sum <- dep_smoke %>% group_by(addepev2, smoke100) %>% summarise(count = n())
+
+depdrink_sum <- dep_drink %>% group_by(addepev2, alcohol_drinker) %>% summarise(count = n())
+
+depsmoke_sum
+depdrink_sum
+
+```
+
+Visualization
+```{r}
+ggplot(data=depdrink_sum, aes(x=addepev2, y=count, fill=alcohol_drinker))+geom_bar(stat = "identity", position=position_dodge(), width=0.5) +xlab("Depressive disorder")
+
+ggplot(data=depsmoke_sum, aes(x=addepev2, y=count, fill=smoke100))+geom_bar(stat = "identity", position=position_dodge(), width=0.5) +xlab("Depressive disorder")
+```
+
+According to the visualizations above, we see that there is actually a slightly higher number of non drinkers who have a depressive disorder. This does not align with my assumption that more individuals with depressive disorders would have a drinking habit. For smokers, we see that the number of smokers with depressive disorder is actually higher, but not high enough to suggest a relationship between the two variables.
+
+Notable, there is a significant difference between the number of smokers and non smokers without depressive disorders.
+
+
+**Research quesion 2:**
+
+Select veterens, depression, and sleep time variables
+```{r}
+vet_dep_slp <- brfss2013 %>%
+  filter(!is.na(sleptim1), veteran3 == "Yes", !is.na(addepev2), sleptim1 < 12) %>%
+  select(veteran3, addepev2, sleptim1)
+
+head(vet_dep_slp)
+```
+
+Summary
+```{r}
+vet_summary <- vet_dep_slp %>% group_by(addepev2) %>% summarise(count = n(), mean = mean(sleptim1), median = median(sleptim1))
+
+vet_summary
+
+```
+
+
+Visualization
+```{r}
+
+ggplot(data=vet_summary, aes(x=addepev2, y=count)) +geom_bar(stat = "identity", width=0.5) +xlab("Depression in veterans")
+
+
+```
+
+This bar plot shows the difference of veterans with and without depression.
+
+
+```{r}
+
+ggplot(data=vet_summary, aes(x=addepev2, y=mean)) + geom_bar(stat = "identity", width=0.5) +xlab("Depression in veterans")
+```
+
+The mean sleeping times of veterans with depression is 6.6, which is less than the recommended amount but still above the appropriate number of hours of sleep. It is less than the mean sleeping time of veterans without depression.
+
+
+**Research quesion 3:**
+
+Only selecting smokers to see their rate of cancer.
+```{r}
+
+smoke_cancer <- brfss2013 %>%
+  filter(!is.na(chcocncr), smoke100 == "Yes") %>%
+  select(chcocncr, smoke100)
+
+head(smoke_cancer)
+
+```
+
+Summary
+```{r}
+
+cancer_summary <- smoke_cancer %>%
+  group_by(chcocncr) %>%
+  summarise(count = n())
+
+cancer_summary
+
+```
+
+Visualization
+
+```{r}
+
+ggplot(data=cancer_summary, aes(x=chcocncr, y=count)) + geom_bar(stat = "identity") +xlab("Cancer status")
+
+```
+
+The plot above shows that the number of smokers with cancer are far less than the number of smokers without cancer, which is a bit surprising. This graph may be misleading, since the data only records all types of cancer. If there was data for specifically lung cancer, the difference may not be very large.
